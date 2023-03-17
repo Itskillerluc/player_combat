@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -15,8 +16,8 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 public class PlayerCombatCommand {
-    public static void register(CommandDispatcher<CommandSourceStack> pDispatcher, CommandBuildContext pContext) {
-        var mainCommand = pDispatcher.register(literal("pc")
+    public static void register(CommandDispatcher<CommandSourceStack> pDispatcher, CommandBuildContext pContext, String cmd) {
+        LiteralCommandNode<CommandSourceStack> mainCommand = pDispatcher.register(literal(cmd)
                 .then(literal("points").requires(p -> p.hasPermission(2))
                         .then(literal("reward")
                                 .then(argument("first", IntegerArgumentType.integer())
@@ -67,8 +68,6 @@ public class PlayerCombatCommand {
                         .then(argument("page", IntegerArgumentType.integer())
                                 .executes(context -> getLeaderBoard(context, IntegerArgumentType.getInteger(context, "page")))))
         );
-        pDispatcher.register(literal("playercombat")
-                .requires(p -> p.hasPermission(2)).redirect(mainCommand));
     }
 
     private static int getLeaderBoard(CommandContext<?> context, int page){
