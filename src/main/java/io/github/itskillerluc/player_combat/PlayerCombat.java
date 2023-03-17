@@ -17,7 +17,6 @@ public class PlayerCombat
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
         StatRegistry.STATS.register(modEventBus);
-        StatRegistry.STAT_TYPE.register(modEventBus);
 
         MinecraftForge.EVENT_BUS.register(this);
     }

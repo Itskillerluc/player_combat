@@ -11,8 +11,6 @@ import net.minecraftforge.registries.RegistryObject;
 
 public class StatRegistry {
     public static final DeferredRegister<ResourceLocation> STATS = DeferredRegister.create(Registry.CUSTOM_STAT_REGISTRY, PlayerCombat.MODID);
-    public static final DeferredRegister<StatType<?>> STAT_TYPE = DeferredRegister.create(ForgeRegistries.STAT_TYPES, PlayerCombat.MODID);
-
-    public static final RegistryObject<StatType<BlockEntityType<?>>> TEST = STAT_TYPE.register("test", () -> new StatType<>(Registry.BLOCK_ENTITY_TYPE));
     public static final RegistryObject<ResourceLocation> POINTS = STATS.register("points", () -> new ResourceLocation(PlayerCombat.MODID, "points"));
+    public static final RegistryObject<ResourceLocation> MOB_POINTS = STATS.register("mob_points", () -> new ResourceLocation(PlayerCombat.MODID, "mob_points"));
 }
