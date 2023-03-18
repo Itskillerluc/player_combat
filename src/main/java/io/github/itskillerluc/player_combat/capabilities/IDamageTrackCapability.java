@@ -1,6 +1,7 @@
 package io.github.itskillerluc.player_combat.capabilities;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Mth;
 import net.minecraftforge.common.util.INBTSerializable;
 
 import java.util.LinkedHashMap;
@@ -23,4 +24,15 @@ public interface IDamageTrackCapability extends INBTSerializable<CompoundTag> {
     void addDamage(UUID id, float damage);
 
     void removeDamage(UUID id, float damage);
+    default void removeDamageEldest(float damage) {
+        float subtract = damage;
+        do {
+            getDamageMapEntry(0).setValue(getDamageMapEntry(0).getValue() - damage);
+            if (getDamageMapEntry(0).getValue() < 0) {
+                var entry = popDamageMapEntry();
+                subtract = -entry.getValue();
+            }
+        }
+        while (subtract != 0 && getDamageMap().size() > 0);
+    }
 }

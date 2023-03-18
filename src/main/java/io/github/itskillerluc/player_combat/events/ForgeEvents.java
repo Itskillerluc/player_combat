@@ -43,10 +43,10 @@ public class ForgeEvents {
     @SubscribeEvent
     static void damageEvent(final LivingDamageEvent event){
         Entity attacker = event.getSource().getEntity();
-        if (!(attacker instanceof Player) || !(event.getEntity() instanceof Enemy || event.getEntity() instanceof Player)){
+        if (event.getEntity().getLevel().isClientSide() || !(attacker instanceof Player) || !(event.getEntity() instanceof Enemy || event.getEntity() instanceof Player)){
             return;
         }
-        attacker.getCapability(AttachDamageTrackCapability.INSTANCE).ifPresent(cap -> cap.addDamage(attacker.getUUID(), event.getAmount()));
+        event.getEntity().getCapability(AttachDamageTrackCapability.INSTANCE).ifPresent(cap -> cap.addDamage(attacker.getUUID(), event.getAmount()));
     }
 
     @SubscribeEvent
@@ -56,9 +56,14 @@ public class ForgeEvents {
         }
         event.getEntity().getCapability(AttachDamageTrackCapability.INSTANCE).resolve().ifPresentOrElse(cap -> {
             for (Map.Entry<UUID, Float> uuidFloatEntry : cap.getDamageMap().entrySet()) {
-                Integer stat = Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()));
-                if (stat != null){
-                    Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), ((int) (Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get())) + uuidFloatEntry.getValue())));
+                var player = event.getEntity().getLevel().getPlayerByUUID(uuidFloatEntry.getKey());
+                if (player == null){
+                    Integer stat = Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()));
+                    if (stat != null){
+                        Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), ((int) (Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get())) + uuidFloatEntry.getValue())));
+                    }
+                } else {
+                    player.awardStat(StatRegistry.MOB_POINTS.get());
                 }
             }
         }, () -> LogManager.getLogger().error("Couldn't find DamageTrackCapability"));
@@ -66,6 +71,9 @@ public class ForgeEvents {
 
     @SubscribeEvent
     static void healEvent(final LivingHealEvent event){
-
+        if (event.getEntity().getLevel().isClientSide()){
+            return;
+        }
+        event.getEntity().getCapability(AttachDamageTrackCapability.INSTANCE).ifPresent(cap -> cap.removeDamageEldest(event.getAmount()));
     }
 }
