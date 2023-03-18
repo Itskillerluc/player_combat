@@ -27,8 +27,9 @@ public interface IDamageTrackCapability extends INBTSerializable<CompoundTag> {
         float subtract = damage;
 
         while (subtract != 0 && getDamageMap().size() > 0) {
-            getDamageMapEntry(0).setValue(getDamageMapEntry(0).getValue() - damage);
-            if (getDamageMapEntry(0).getValue() < 0) {
+            getDamageMapEntry(0).setValue(getDamageMapEntry(0).getValue() - subtract);
+            subtract -= damage;
+            if (getDamageMapEntry(0).getValue() <= 0) {
                 var entry = popDamageMapEntry();
                 subtract = -entry.getValue();
             }

@@ -27,11 +27,6 @@ public class DamageTrackCapability implements IDamageTrackCapability{
     }
 
     @Override
-    public Map.Entry<UUID, Float> popDamageMapEntry() {
-        return new ArrayList<>(damageMap.entrySet()).get(0);
-    }
-
-    @Override
     public void addDamageMapEntry(Map.Entry<UUID, Float> entry) {
         damageMap.put(entry.getKey(), entry.getValue());
     }
