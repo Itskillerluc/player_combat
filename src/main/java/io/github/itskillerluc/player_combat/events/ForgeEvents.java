@@ -43,7 +43,7 @@ public class ForgeEvents {
     @SubscribeEvent
     static void damageEvent(final LivingDamageEvent event){
         Entity attacker = event.getSource().getEntity();
-        if (event.getEntity().getLevel().isClientSide() || !(attacker instanceof Player) || !(event.getEntity() instanceof Enemy || event.getEntity() instanceof Player)){
+        if (!(attacker instanceof Player) || !(event.getEntity() instanceof Enemy || event.getEntity() instanceof Player)){
             return;
         }
         attacker.getCapability(AttachDamageTrackCapability.INSTANCE).ifPresent(cap -> cap.addDamage(attacker.getUUID(), event.getAmount()));
