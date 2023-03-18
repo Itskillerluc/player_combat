@@ -12,7 +12,7 @@ public class ServerConfig {
         BUILDER.push("Configs for Player Combat");
 
         MONSTER_DAMAGE_TO_POINT = BUILDER.comment("How much damage to a monster equals 1 point.")
-                .define("Veins Per Chunk", 7);
+                .define("Monster Damage To Points", 50);
 
         BUILDER.pop();
         SPEC = BUILDER.build();

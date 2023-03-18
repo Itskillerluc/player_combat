@@ -3,8 +3,10 @@ package io.github.itskillerluc.player_combat.events;
 import io.github.itskillerluc.player_combat.PlayerCombat;
 import io.github.itskillerluc.player_combat.capabilities.AttachDamageTrackCapability;
 import io.github.itskillerluc.player_combat.commands.PlayerCombatCommand;
+import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Enemy;
@@ -60,13 +62,23 @@ public class ForgeEvents {
                 if (player == null){
                     Integer stat = Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()));
                     if (stat != null){
-                        Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), ((int) (Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get())) + uuidFloatEntry.getValue())));
+                        var mobStat = Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get());
+                        Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), mobStat, ((int) (Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get())) + uuidFloatEntry.getValue())));
+                        var value = Utils.getStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), mobStat);
+                        Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), mobStat, value % ServerConfig.MONSTER_DAMAGE_TO_POINT.get());
+                        Utils.setStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), value / ServerConfig.MONSTER_DAMAGE_TO_POINT.get());
                     }
                 } else {
-                    player.awardStat(StatRegistry.MOB_POINTS.get());
+                    player.awardStat(StatRegistry.MOB_POINTS.get(), uuidFloatEntry.getValue().intValue());
+                    int value = ((ServerPlayer) player).getStats().getValue(Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()));
+                    player.resetStat(Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()));
+                    player.awardStat(Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), value % ServerConfig.MONSTER_DAMAGE_TO_POINT.get());
+                    player.awardStat(Stats.CUSTOM.get(StatRegistry.POINTS.get()), value / ServerConfig.MONSTER_DAMAGE_TO_POINT.get());
                 }
             }
         }, () -> LogManager.getLogger().error("Couldn't find DamageTrackCapability"));
+
+
     }
 
     @SubscribeEvent
