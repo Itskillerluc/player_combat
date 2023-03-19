@@ -1,6 +1,7 @@
 package io.github.itskillerluc.player_combat.events;
 
 import io.github.itskillerluc.player_combat.PlayerCombat;
+import io.github.itskillerluc.player_combat.capabilities.BountyCapaiblity;
 import io.github.itskillerluc.player_combat.capabilities.DamageTrackCapability;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -11,5 +12,6 @@ public class ModEvents {
     @SubscribeEvent
     public void registerCaps(RegisterCapabilitiesEvent event) {
         event.register(DamageTrackCapability.class);
+        event.register(BountyCapaiblity.class);
     }
 }

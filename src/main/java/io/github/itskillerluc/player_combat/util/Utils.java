@@ -50,45 +50,57 @@ public final class Utils {
         return stats == null ? 0 : stats.getValue(stat);
     }
 
-    private static void setStatOffline(UUID uuid, Level level, Stat<?> stat, int value){
+    private static int setStatOffline(UUID uuid, Level level, Stat<?> stat, int value){
         if (level.getServer() != null){
             getStats(uuid, level).stats.put(stat, value);
+            return 1;
         }
+        return 0;
     }
 
-    private static void setStatOffline(String username, Level level, Stat<?> stat, int value){
+    private static int setStatOffline(String username, Level level, Stat<?> stat, int value){
         if (level.getServer() != null) {
+            AtomicInteger success = new AtomicInteger();
             level.getServer().getProfileCache().get(username).ifPresentOrElse(profile ->
-                setStatOffline(profile.getId(), level, stat, value), () -> LogManager.getLogger().error("Couldn't find user with username: " + username));
+                    success.set(setStatOffline(profile.getId(), level, stat, value)), () -> {success.set(0); LogManager.getLogger().error("Couldn't find user with username: " + username);});
+            return success.get();
         }
+        return 0;
     }
 
-    public static void addStat(UUID uuid, Level level, Stat<?> stat, int value){
-        setStat(uuid, level, stat, getStat(uuid, level, stat) + value);
+    public static int addStat(UUID uuid, Level level, Stat<?> stat, int value){
+        return setStat(uuid, level, stat, getStat(uuid, level, stat) + value);
     }
 
-    public static void addStat(String username, Level level, Stat<?> stat, int value){
+    public static int addStat(String username, Level level, Stat<?> stat, int value){
         if (level.getServer() != null) {
+            AtomicInteger success = new AtomicInteger();
             level.getServer().getProfileCache().get(username).ifPresentOrElse(profile ->
-                    addStat(profile.getId(), level, stat, value), () -> LogManager.getLogger().error("Couldn't find user with username: " + username));
+                    success.set(addStat(profile.getId(), level, stat, value)), () -> {success.set(0);LogManager.getLogger().error("Couldn't find user with username: " + username);});
+            return success.get();
         }
+        return 0;
     }
 
-    public static void setStat(UUID uuid, Level level, Stat<?> stat, int value){
+    public static int setStat(UUID uuid, Level level, Stat<?> stat, int value){
         Player player = level.getPlayerByUUID(uuid);
         if (player == null){
-            setStatOffline(uuid, level, stat, value);
+            return setStatOffline(uuid, level, stat, value);
         } else {
             player.resetStat(stat);
             player.awardStat(stat, value);
+            return 1;
         }
     }
 
-    public static void setStat(String username, Level level, Stat<?> stat, int value){
+    public static int setStat(String username, Level level, Stat<?> stat, int value){
         if (level.getServer() != null) {
+            AtomicInteger success = new AtomicInteger();
             level.getServer().getProfileCache().get(username).ifPresentOrElse(profile ->
-                    setStat(profile.getId(), level, stat, value), () -> LogManager.getLogger().error("Couldn't find user with username: " + username));
+                    success.set(setStat(profile.getId(), level, stat, value)), () -> {success.set(0);LogManager.getLogger().error("Couldn't find user with username: " + username);});
+            return success.get();
         }
+        return 0;
     }
 
     public static int getStat(UUID uuid, Level level, Stat<?> stat) {

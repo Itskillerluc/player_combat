@@ -6,6 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.CapabilityToken;
@@ -16,13 +17,13 @@ import net.minecraftforge.event.AttachCapabilitiesEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class AttachDamageTrackCapability {
-    public static final Capability<IDamageTrackCapability> INSTANCE = CapabilityManager.get(new CapabilityToken<>() {});
-    private static class DamageTrackCapabilityProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
-        public static final ResourceLocation IDENTIFIER = new ResourceLocation(PlayerCombat.MODID, "damage_track");
+public class AttachBountyCapability {
+    public static final Capability<IBountyCapability> INSTANCE = CapabilityManager.get(new CapabilityToken<>() {});
+    private static class BountyCapabilityProvider implements ICapabilityProvider, INBTSerializable<CompoundTag> {
+        public static final ResourceLocation IDENTIFIER = new ResourceLocation(PlayerCombat.MODID, "bounty");
 
-        private final IDamageTrackCapability backend = new DamageTrackCapability();
-        private final LazyOptional<IDamageTrackCapability> optionalData = LazyOptional.of(() -> backend);
+        private final IBountyCapability backend = new BountyCapaiblity();
+        private final LazyOptional<IBountyCapability> optionalData = LazyOptional.of(() -> backend);
 
         @NotNull
         @Override
@@ -41,11 +42,7 @@ public class AttachDamageTrackCapability {
         }
     }
 
-    public static void attach(final AttachCapabilitiesEvent<Entity> event) {
-        if (event.getObject() instanceof LivingEntity) {
-            final DamageTrackCapabilityProvider provider = new DamageTrackCapabilityProvider();
-
-            event.addCapability(DamageTrackCapabilityProvider.IDENTIFIER, provider);
-        }
+    public static void attach(final AttachCapabilitiesEvent<Level> event) {
+        event.addCapability(BountyCapabilityProvider.IDENTIFIER, new BountyCapabilityProvider());
     }
 }
