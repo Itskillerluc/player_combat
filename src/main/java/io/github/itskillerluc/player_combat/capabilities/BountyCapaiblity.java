@@ -38,7 +38,7 @@ public class BountyCapaiblity implements IBountyCapability{
 
     @Override
     public int removeBounty(UUID uuid) {
-        return bountyMap.remove(uuid);
+        return bountyMap.remove(uuid) == null ? 0 : 1;
     }
 
     @Override

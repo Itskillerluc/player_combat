@@ -25,6 +25,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 
+import java.util.Comparator;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,8 +33,8 @@ import java.util.UUID;
 public class ForgeEvents {
     @SubscribeEvent
     static void registerCommands(RegisterCommandsEvent event){
-        PlayerCombatCommand.register(event.getDispatcher(), event.getBuildContext(), "pc");
-        PlayerCombatCommand.register(event.getDispatcher(), event.getBuildContext(), "playercombat");
+        PlayerCombatCommand.register(event.getDispatcher(), "pc");
+        PlayerCombatCommand.register(event.getDispatcher(), "playercombat");
     }
 
     @SubscribeEvent
@@ -79,6 +80,13 @@ public class ForgeEvents {
                 for (Map.Entry<UUID, Float> uuidFloatEntry : cap.getDamageMap().entrySet()) {
                     Utils.addStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), stat, uuidFloatEntry.getValue().intValue());
                 }
+
+                event.getEntity().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresentOrElse(bounty -> {
+                    if (bounty.isBounty(event.getEntity().getUUID())) {
+                        cap.getDamageMap().entrySet().stream().max(Comparator.comparingDouble(Map.Entry::getValue)).ifPresent(max ->
+                                Utils.setStat(max.getKey(), event.getEntity().getLevel(), stat, bounty.getBounty(event.getEntity().getUUID())));
+                    }
+                }, () -> LogManager.getLogger().error("Couldn't find BountyCapability"));
             }, () -> LogManager.getLogger().error("Couldn't find DamageTrackCapability"));
         }
 

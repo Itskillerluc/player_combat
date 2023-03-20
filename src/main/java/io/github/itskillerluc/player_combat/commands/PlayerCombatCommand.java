@@ -1,34 +1,35 @@
 package io.github.itskillerluc.player_combat.commands;
 
 import com.google.common.collect.ImmutableList;
+import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.tree.LiteralCommandNode;
+import io.github.itskillerluc.player_combat.capabilities.AttachBountyCapability;
 import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
 import net.minecraft.ChatFormatting;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.network.chat.*;
+import net.minecraft.commands.arguments.GameProfileArgument;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.stats.Stats;
-import net.minecraft.world.entity.Entity;
 import org.apache.logging.log4j.LogManager;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 public class PlayerCombatCommand {
-    public static void register(CommandDispatcher<CommandSourceStack> pDispatcher, CommandBuildContext pContext, String cmd) {
-        LiteralCommandNode<CommandSourceStack> mainCommand = pDispatcher.register(literal(cmd)
+    public static void register(CommandDispatcher<CommandSourceStack> pDispatcher, String cmd) {
+        pDispatcher.register(literal(cmd)
                 .then(literal("points").requires(p -> p.hasPermission(2))
                         .then(literal("reward")
                                 .then(argument("first", IntegerArgumentType.integer())
@@ -41,79 +42,43 @@ public class PlayerCombatCommand {
                                                                         .executes(context -> payRewards(context, IntegerArgumentType.getInteger(context, "first"), IntegerArgumentType.getInteger(context, "second"), IntegerArgumentType.getInteger(context, "third"), IntegerArgumentType.getInteger(context, "threshold"), IntegerArgumentType.getInteger(context, "thresholdamount")))))))))
 
                         .then(literal("give")
-                                .then(argument("targets", EntityArgument.players())
+                                .then(argument("targets", GameProfileArgument.gameProfile())
                                         .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> givePoint(context, IntegerArgumentType.getInteger(context, "amount"), EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList()))))
-
-                                .then(argument("target", StringArgumentType.word())
-                                        .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> givePoint(context, IntegerArgumentType.getInteger(context, "amount"), ImmutableList.of(StringArgumentType.getString(context, "target")))))))
+                                                .executes(context -> givePoint(context, IntegerArgumentType.getInteger(context, "amount"), GameProfileArgument.getGameProfiles(context, "targets"))))))
 
                         .then(literal("remove")
-                                .then(argument("targets", EntityArgument.players())
+                                .then(argument("targets", GameProfileArgument.gameProfile())
                                         .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> removePoint(context, IntegerArgumentType.getInteger(context, "amount"), EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList()))))
-
-                                .then(argument("target", StringArgumentType.word())
-                                        .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> removePoint(context, IntegerArgumentType.getInteger(context, "amount"), ImmutableList.of(StringArgumentType.getString(context,"target")))))))
+                                                .executes(context -> removePoint(context, IntegerArgumentType.getInteger(context, "amount"), GameProfileArgument.getGameProfiles(context, "targets"))))))
 
                         .then(literal("get")
-                                .then(argument("target", EntityArgument.player())
-                                        .executes(context -> getStats(context, EntityArgument.getPlayer(context, "target").getStringUUID())))
-
-                                .then(argument("target", StringArgumentType.word())
-                                        .executes(context -> getStats(context, StringArgumentType.getString(context, "target"))))
+                                .then(argument("target", GameProfileArgument.gameProfile())
+                                        .executes(context -> getStats(context, GameProfileArgument.getGameProfiles(context, "target")))))
 
                         .then(literal("set")
-                                .then(argument("targets", EntityArgument.players())
+                                .then(argument("targets", GameProfileArgument.gameProfile())
                                         .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> setPoint(context, IntegerArgumentType.getInteger(context, "amount"), EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList())))
+                                                .executes(context -> setPoint(context, IntegerArgumentType.getInteger(context, "amount"), GameProfileArgument.getGameProfiles(context, "targets"))))
 
                                         .then(literal("from")
-                                                .then(argument("target", EntityArgument.player())
-                                                        .executes(context -> setPoint(context, Utils.getStat(EntityArgument.getPlayer(context, "target").getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get())), EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList())))
-
-                                                .then(argument("target", StringArgumentType.word())
-                                                        .executes(context -> setPoint(context, getStat(context, StringArgumentType.getString(context, "target")), ImmutableList.of(StringArgumentType.getString(context, "target")))))))
-
-                                .then(argument("target", StringArgumentType.word())
-                                        .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> setPoint(context, IntegerArgumentType.getInteger(context, "amount"), EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList())))
-
-                                        .then(literal("from")
-                                                .then(argument("target", EntityArgument.player())
-                                                        .executes(context -> setPoint(context, Utils.getStat(EntityArgument.getPlayer(context, "target").getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get())), ImmutableList.of(StringArgumentType.getString(context, "targets")))))
-
-                                                .then(argument("target", StringArgumentType.word())
-                                                        .executes(context -> setPoint(context, getStat(context, StringArgumentType.getString(context, "target")), ImmutableList.of(StringArgumentType.getString(context, "target")))))))
-
+                                                .then(argument("target", GameProfileArgument.gameProfile())
+                                                        .executes(context -> setPoint(context, ((int) GameProfileArgument.getGameProfiles(context, "target").stream().mapToInt(profile -> getStat(context, profile)).average().orElse(0)), GameProfileArgument.getGameProfiles(context, "targets"))))))
 
                                 .then(argument("amount", IntegerArgumentType.integer())
-                                        .executes(context -> setPoint(context, IntegerArgumentType.getInteger(context, "amount"), ImmutableList.of(context.getSource().getPlayerOrException().getStringUUID()))))
+                                        .executes(context -> setPoint(context, IntegerArgumentType.getInteger(context, "amount"), ImmutableList.of(context.getSource().getPlayerOrException().getGameProfile()))))
 
                                 .then(literal("from")
-                                        .then(argument("target", EntityArgument.player())
-                                                .executes(context -> setPoint(context, Utils.getStat(EntityArgument.getPlayer(context, "target").getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get())), ImmutableList.of(context.getSource().getPlayerOrException().getStringUUID()))))
-
-                                        .then(argument("target", StringArgumentType.word())
-                                                .executes(context -> setPoint(context, getStat(context, StringArgumentType.getString(context, "target")), ImmutableList.of(context.getSource().getPlayerOrException().getStringUUID()))))))
-
+                                        .then(argument("target", GameProfileArgument.gameProfile())
+                                                .executes(context -> setPoint(context, ((int) GameProfileArgument.getGameProfiles(context, "target").stream().mapToInt(profile -> getStat(context, profile)).average().orElse(0)), ImmutableList.of(context.getSource().getPlayerOrException().getGameProfile()))))))
 
                         .then(literal("reset")
-                                .executes(context -> resetPoints(context, ImmutableList.of(context.getSource().getPlayerOrException().getStringUUID())))
+                                .executes(context -> resetPoints(context, ImmutableList.of(context.getSource().getPlayerOrException().getGameProfile())))
 
                                 .then(literal("everyone")
                                         .executes(PlayerCombatCommand::resetAll))
 
-                                .then(literal("everyoneoffline")
-                                        .executes(PlayerCombatCommand::resetAllOffline))
-
-                                .then(argument("targets", EntityArgument.players())
-                                        .executes(context -> resetPoints(context, EntityArgument.getPlayers(context, "targets").stream().map(Entity::getStringUUID).toList())))
-
-                                .then(argument("targets", StringArgumentType.word())
-                                        .executes(context -> resetPoints(context, ImmutableList.of(StringArgumentType.getString(context, "targets"))))))
+                                .then(argument("targets", GameProfileArgument.gameProfile())
+                                        .executes(context -> resetPoints(context, GameProfileArgument.getGameProfiles(context, "targets")))))
 
                         .then(literal("bonus")
                                 .then(argument("first", IntegerArgumentType.integer())
@@ -123,29 +88,31 @@ public class PlayerCombatCommand {
 
                                                         .then(argument("threshold", IntegerArgumentType.integer())
                                                                 .then(argument("thresholdamount", IntegerArgumentType.integer())
-                                                                        .executes(context -> bonusReward(context, IntegerArgumentType.getInteger(context, "first"), IntegerArgumentType.getInteger(context, "second"), IntegerArgumentType.getInteger(context, "third"), IntegerArgumentType.getInteger(context, "threshold"), IntegerArgumentType.getInteger(context, "thresholdamount")))))))))))
-
+                                                                        .executes(context -> bonusReward(context, IntegerArgumentType.getInteger(context, "first"), IntegerArgumentType.getInteger(context, "second"), IntegerArgumentType.getInteger(context, "third"), IntegerArgumentType.getInteger(context, "threshold"), IntegerArgumentType.getInteger(context, "thresholdamount"))))))))))
                 .then(literal("leaderboard")
-                        .executes(context -> getLeaderBoard(context, 0))
+                        .executes(context -> getLeaderBoard(context, 1))
 
-                        .then(argument("page", IntegerArgumentType.integer())
+                        .then(argument("page", IntegerArgumentType.integer(1))
                                 .executes(context -> getLeaderBoard(context, IntegerArgumentType.getInteger(context, "page")))))
 
                 .then(literal("bounty")
                         .then(literal("set")
-                                .then(argument("target", EntityArgument.player())
+                                .then(argument("target", GameProfileArgument.gameProfile())
                                         .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> setBounty(context, EntityArgument.getPlayer(context, "target").getStringUUID(), IntegerArgumentType.getInteger(context, "amount")))))
-
-                                .then(argument("target", StringArgumentType.word())
-                                        .then(argument("amount", IntegerArgumentType.integer())
-                                                .executes(context -> setBounty(context, StringArgumentType.getString(context, "target"), IntegerArgumentType.getInteger(context, "amount"))))))
+                                                .executes(context -> setBounty(context, GameProfileArgument.getGameProfiles(context, "target"), IntegerArgumentType.getInteger(context, "amount"))))))
 
                         .then(literal("list")
                                 .executes(context -> listBounty(context, 0))
 
                                 .then(argument("page", IntegerArgumentType.integer())
-                                        .executes(context -> listBounty(context, IntegerArgumentType.getInteger(context, "page"))))))
+                                        .executes(context -> listBounty(context, IntegerArgumentType.getInteger(context, "page")))))
+
+                        .then(literal("clear")
+                                .executes(PlayerCombatCommand::removeAllBounty)
+                                .then(argument("targets", GameProfileArgument.gameProfile())
+                                        .executes(context -> removeBounty(context, GameProfileArgument.getGameProfiles(context, "targets"))))
+                        )
+                )
         );
     }
 
@@ -155,78 +122,101 @@ public class PlayerCombatCommand {
         context.getSource().sendSystemMessage(Component.literal("--------Leaderboard--------").withStyle(ChatFormatting.GOLD));
 
 
-        for (int i = 10 * page; i < Math.min(page * 10 + 10, entries.size()); i++) {
+        for (int i = 10 * (page -1); i < Math.min((page-1) * 10 + 10, entries.size()); i++) {
             Map.Entry<UUID, ServerStatsCounter> uuidServerStatsCounterEntry = entries.get(i);
 
             int finalI = i + 1;
             server.getProfileCache().get(uuidServerStatsCounterEntry.getKey()).ifPresentOrElse(profile ->
                     context.getSource().sendSystemMessage(Component.literal(finalI + ". ").withStyle(ChatFormatting.GREEN).append(Component.literal(profile.getName() + ": ").withStyle(ChatFormatting.AQUA)).append(Component.literal(String.valueOf(uuidServerStatsCounterEntry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())))).withStyle(ChatFormatting.WHITE))), () -> LogManager.getLogger().warn("Couldn't find player"));
         }
-        context.getSource().sendSystemMessage(Component.literal(String.format("---------Page (%d/%d)---------", page + 1, (entries.size() / 10) +1)).withStyle(ChatFormatting.GOLD));
+        context.getSource().sendSystemMessage(Component.literal(String.format("---------Page (%d/%d)---------", page, (entries.size() / 10) +1)).withStyle(ChatFormatting.GOLD));
         return 0;
     }
 
-    private static int givePoint(CommandContext<CommandSourceStack> context, int points, Collection<String> players){
-        for (String player : players) {
-            try {
-                return Utils.addStat(UUID.fromString(player), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points);
-            } catch (IllegalArgumentException ignore) {
-                return Utils.addStat(player, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points);
+    private static int givePoint(CommandContext<CommandSourceStack> context, int points, Collection<GameProfile> players){
+        int toReturn = 0;
+        for (GameProfile player : players) {
+            if (Utils.addStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points) == 1) {
+                toReturn = 1;
             }
         }
-        return 0;
+        return toReturn;
     }
 
-    private static int removePoint(CommandContext<CommandSourceStack> context, int points, Collection<String> players){
+    private static int removePoint(CommandContext<CommandSourceStack> context, int points, Collection<GameProfile> players){
         return givePoint(context, -points, players);
     }
-    private static int setPoint(CommandContext<CommandSourceStack> context, int points, Collection<String> players){
-        for (String player : players) {
-            try {
-                return Utils.setStat(UUID.fromString(player), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points);
-            } catch (IllegalArgumentException ignore) {
-                return Utils.setStat(player, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points);
+    private static int setPoint(CommandContext<CommandSourceStack> context, int points, Collection<GameProfile> players){
+        int toReturn = 0;
+        for (GameProfile player : players) {
+            if (Utils.setStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points) == 0) {
+                toReturn = 1;
             }
         }
-        return 0;
+        return toReturn;
     }
 
+    //TODO
     private static int payRewards(CommandContext<CommandSourceStack> context, int first, int second, int third, int threshold, int thresholdAmount){
+        ArrayList<Map.Entry<UUID, ServerStatsCounter>> entries = new ArrayList<>(context.getSource().getServer().getPlayerList().stats.entrySet());
         return 0;
     }
 
-    private static int resetPoints(CommandContext<CommandSourceStack> context, Collection<String> players){
-        for (String player : players) {
-            try {
-                return Utils.setStat(UUID.fromString(player), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get());
-            } catch (IllegalArgumentException ignore) {
-                return Utils.setStat(player, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get());
+    private static int resetPoints(CommandContext<CommandSourceStack> context, Collection<GameProfile> players){
+        int toReturn = 0;
+        for (GameProfile player : players) {
+            if (Utils.setStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get()) == 0) {
+                toReturn = 1;
             }
         }
-        return 0;
+        return toReturn;
     }
 
     private static int bonusReward(CommandContext<CommandSourceStack> context, int first, int second, int third, int threshold, int thresholdAmount){
         return payRewards(context, first, second, third, threshold, thresholdAmount) & resetAll(context);
     }
 
-    private static int setBounty(CommandContext<CommandSourceStack> context, String target, int amount){
-        return 0;
+    private static int setBounty(CommandContext<CommandSourceStack> context, Collection<GameProfile> target, int amount){
+        if (context.getSource().getPlayer() != null){
+            return 0;
+        }
+        if (getStat(context, context.getSource().getPlayer().getGameProfile()) >= amount * target.size()) {
+            context.getSource().getPlayer().sendSystemMessage(Component.literal("You do not have sufficient points for this. You are " + (target.size() * amount - getStat(context, context.getSource().getPlayer().getGameProfile())) + "points short."));
+            return 0;
+        }
+        AtomicInteger toReturn = new AtomicInteger();
+        for (GameProfile gameProfile : target) {
+            context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> {
+                    cap.setBounty(gameProfile.getId(), amount);
+                    Utils.addStat(context.getSource().getPlayer().getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -amount);
+                    toReturn.set(1);
+            });
+        }
+        return toReturn.get();
     }
 
     private static int listBounty(CommandContext<CommandSourceStack> context, int page){
+        if (!context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).isPresent()){
+            return 0;
+        }
+
+        context.getSource().sendSystemMessage(Component.literal("--------Bounties--------").withStyle(ChatFormatting.GOLD));
+
+        ArrayList<Map.Entry<UUID, Integer>> entries = new ArrayList<>(context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE)
+                .resolve().orElseThrow().getBountyList().entrySet());
+
+        for (int i = 10 * (page -1); i < Math.min((page-1) * 10 + 10, entries.size()); i++) {
+            Map.Entry<UUID, Integer> uuidServerStatsCounterEntry = entries.get(i);
+
+            int finalI = i + 1;
+            context.getSource().getServer().getProfileCache().get(uuidServerStatsCounterEntry.getKey()).ifPresentOrElse(profile ->
+                    context.getSource().sendSystemMessage(Component.literal(finalI + ". ").withStyle(ChatFormatting.GREEN).append(Component.literal(profile.getName() + ": ").withStyle(ChatFormatting.AQUA)).append(Component.literal(String.valueOf(uuidServerStatsCounterEntry.getValue().intValue())).withStyle(ChatFormatting.WHITE))), () -> LogManager.getLogger().warn("Couldn't find player"));
+        }
+        context.getSource().sendSystemMessage(Component.literal(String.format("---------Page (%d/%d)---------", page, (entries.size() / 10) +1)).withStyle(ChatFormatting.GOLD));
         return 0;
     }
 
     public static int resetAll(CommandContext<CommandSourceStack> context){
-        for (ServerPlayer player : context.getSource().getLevel().players()) {
-            return Utils.setStat(player.getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get()) &
-                    Utils.setStat(player.getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), 0);
-        }
-        return 0;
-    }
-
-    public static int resetAllOffline(CommandContext<CommandSourceStack> context){
         for (UUID uuid : context.getSource().getServer().getPlayerList().stats.keySet()) {
             return Utils.setStat(uuid, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get()) &
                     Utils.setStat(uuid, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), 0);
@@ -234,16 +224,41 @@ public class PlayerCombatCommand {
         return 0;
     }
 
-    private static int getStat(CommandContext<CommandSourceStack> context, String player){
-        try {
-            return Utils.getStat(UUID.fromString(player), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()));
-        } catch (IllegalArgumentException ignore) {
-            return Utils.getStat(player, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()));
-        }
+    private static int getStat(CommandContext<CommandSourceStack> context, GameProfile player){
+        return Utils.getStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()));
     }
 
-    private static int getStats(CommandContext<CommandSourceStack> context, String player){
-        context.getSource().sendSystemMessage(Component.literal(String.valueOf(getStat(context, player))));
-        return Math.min(getStat(context, player), 1);
+    private static int getStats(CommandContext<CommandSourceStack> context, Collection<GameProfile> player){
+        int toReturn = 0;
+        for (GameProfile profile : player) {
+            context.getSource().sendSystemMessage(Component.literal(profile.getName() + ": ").append(String.valueOf(getStat(context, profile))));
+            if (Math.min(getStat(context, profile), 1) == 1){
+                toReturn = 1;
+            }
+        }
+        return toReturn;
+
+    }
+
+    private static int removeAllBounty(CommandContext<CommandSourceStack> context){
+        AtomicInteger toReturn = new AtomicInteger();
+        context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresentOrElse(cap -> {
+            toReturn.set(1);
+            cap.getBountyList().clear();
+        }, () -> toReturn.set(0));
+        return toReturn.get();
+    }
+
+    private static int removeBounty(CommandContext<CommandSourceStack> context, Collection<GameProfile> players) {
+        AtomicInteger toReturn = new AtomicInteger();
+        int r = 0;
+        for (GameProfile player : players) {
+            context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap ->
+                    toReturn.set(cap.removeBounty(player.getId())));
+            if (toReturn.get() == 1){
+                r = 1;
+            }
+        }
+        return r;
     }
 }
