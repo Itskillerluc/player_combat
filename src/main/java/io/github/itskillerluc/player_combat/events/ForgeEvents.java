@@ -8,6 +8,7 @@ import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stat;
 import net.minecraft.stats.Stats;
@@ -25,6 +26,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.UUID;
@@ -81,6 +83,9 @@ public class ForgeEvents {
                     Utils.addStat(uuidFloatEntry.getKey(), event.getEntity().getLevel(), stat, uuidFloatEntry.getValue().intValue());
                 }
 
+                var lb = new ArrayList<>(cap.getDamageMap().keySet()).indexOf(event.getEntity().getUUID());
+                Utils.addStat(player.getUUID(), event.getEntity().getLevel(), stat, -(ServerConfig.PODIUM_DEATH_MODIFIER.get() * (lb == 0 ? 3 : lb == 1 ? 2 : lb == 3 ? 1 : 0)));
+
                 event.getEntity().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresentOrElse(bounty -> {
                     if (bounty.isBounty(event.getEntity().getUUID())) {
                         cap.getDamageMap().entrySet().stream().max(Comparator.comparingDouble(Map.Entry::getValue)).ifPresent(max ->
@@ -98,5 +103,17 @@ public class ForgeEvents {
             return;
         }
         event.getEntity().getCapability(AttachDamageTrackCapability.INSTANCE).ifPresent(cap -> cap.removeDamageEldest(event.getAmount()));
+    }
+
+    @SubscribeEvent
+    static void loginEvent(final PlayerEvent.PlayerLoggedInEvent event) {
+        if (!event.getEntity().getLevel().isClientSide()) {
+            PlayerCombatCommand.fetchRewards(((ServerLevel) event.getEntity().getLevel()), ((ServerPlayer) event.getEntity()));
+        }
+    }
+
+    @SubscribeEvent
+    static void logoutEvent(final PlayerEvent.PlayerLoggedOutEvent event) {
+        //event.getEntity()
     }
 }

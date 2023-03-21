@@ -14,14 +14,16 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.stats.Stats;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.LogManager;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.minecraft.commands.Commands.argument;
@@ -156,10 +158,27 @@ public class PlayerCombatCommand {
         return toReturn;
     }
 
-    //TODO
     private static int payRewards(CommandContext<CommandSourceStack> context, int first, int second, int third, int threshold, int thresholdAmount){
         ArrayList<Map.Entry<UUID, ServerStatsCounter>> entries = new ArrayList<>(context.getSource().getServer().getPlayerList().stats.entrySet());
-        return 0;
+        int toReturn = 0;
+        if (Utils.setStat(entries.get(0).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -first) == 1 ||
+                Utils.setStat(entries.get(1).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -second) == 1 ||
+                Utils.setStat(entries.get(2).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -third) == 1){
+            toReturn = 1;
+        }
+        for (int i = 0; i < entries.size(); i++) {
+            Map.Entry<UUID, ServerStatsCounter> entry = entries.get(i);
+            if (i == 0 || i == 1 || i == 2 || entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())) < threshold){
+                continue;
+            }
+            if (Utils.setStat(entry.getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -thresholdAmount) == 1) {
+                toReturn = 1;
+            }
+            if (context.getSource().getLevel().players().stream().map(Entity::getUUID).anyMatch(e -> e.equals(entry.getKey()))) {
+                fetchRewards(context.getSource().getLevel(), ((ServerPlayer) Objects.requireNonNull(context.getSource().getLevel().getPlayerByUUID(entry.getKey()))));
+            }
+        }
+        return toReturn;
     }
 
     private static int resetPoints(CommandContext<CommandSourceStack> context, Collection<GameProfile> players){
@@ -172,8 +191,35 @@ public class PlayerCombatCommand {
         return toReturn;
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static int bonusReward(CommandContext<CommandSourceStack> context, int first, int second, int third, int threshold, int thresholdAmount){
-        return payRewards(context, first, second, third, threshold, thresholdAmount) & resetAll(context);
+        ArrayList<Map.Entry<UUID, ServerStatsCounter>> entries = new ArrayList<>(context.getSource().getServer().getPlayerList().stats.entrySet());
+        entries.removeIf(uuid -> context.getSource().getServer().getPlayerList().getPlayer(uuid.getKey()) == null);
+        boolean flag;
+        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(0).getKey()).addItem(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), first));
+        if (!flag) {
+            context.getSource().getServer().getPlayerList().getPlayer(entries.get(0).getKey()).spawnAtLocation(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), first));
+        }
+        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(1).getKey()).addItem(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), second));
+        if (!flag) {
+            context.getSource().getServer().getPlayerList().getPlayer(entries.get(1).getKey()).spawnAtLocation(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), second));
+        }
+        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(2).getKey()).addItem(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), third));
+        if (!flag) {
+            context.getSource().getServer().getPlayerList().getPlayer(entries.get(2).getKey()).spawnAtLocation(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), third));
+        }
+
+        for (int i = 0; i < entries.size(); i++) {
+            Map.Entry<UUID, ServerStatsCounter> entry = entries.get(i);
+            if (i == 0 || i == 1 || i == 2 || entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())) < threshold){
+                continue;
+            }
+            flag = context.getSource().getServer().getPlayerList().getPlayer(entry.getKey()).addItem(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), thresholdAmount));
+            if (!flag) {
+                context.getSource().getServer().getPlayerList().getPlayer(entry.getKey()).spawnAtLocation(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), thresholdAmount));
+            }
+        }
+        return 1;
     }
 
     private static int setBounty(CommandContext<CommandSourceStack> context, Collection<GameProfile> target, int amount){
@@ -260,5 +306,17 @@ public class PlayerCombatCommand {
             }
         }
         return r;
+    }
+
+    public static void fetchRewards(ServerLevel level, ServerPlayer player){
+        var stat = Utils.getStat(player.getUUID(), level, Stats.CUSTOM.get(StatRegistry.POINTS.get()));
+        if (stat < 0){
+            boolean flag = player.addItem(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), Math.abs(stat)));
+            if (!flag) {
+                player.spawnAtLocation(new ItemStack(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()), Math.abs(stat)));
+            }
+            player.displayClientMessage(Component.literal("You have gained your Rewards!!!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
+            player.displayClientMessage(Component.literal("You got " + Math.abs(stat) + " ").append(ForgeRegistries.ITEMS.getValue(ServerConfig.REWARD_ITEM.get()).getDefaultInstance().getDisplayName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+        }
     }
 }
