@@ -26,6 +26,6 @@ public class PlayerCombat
 
         MinecraftForge.EVENT_BUS.register(this);
 
-        ForgeMod.enableServerChatPreview();
+        //ForgeMod.enableServerChatPreview();
     }
 }

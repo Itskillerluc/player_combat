@@ -11,7 +11,7 @@ public class ServerConfig {
     public static final ForgeConfigSpec.ConfigValue<Integer> DEATH_POINT_PENALTY;
     public static final ForgeConfigSpec.ConfigValue<Integer> DEFAULT_POINTS;
     public static final ForgeConfigSpec.ConfigValue<Integer> PODIUM_DEATH_MODIFIER;
-    public static final ForgeConfigSpec.ConfigValue<ResourceLocation> REWARD_ITEM;
+    public static final ForgeConfigSpec.ConfigValue<String> REWARD_ITEM;
 
     static {
         BUILDER.push("Configs for Player Combat");
@@ -26,7 +26,7 @@ public class ServerConfig {
                         .define("Default Points", 0);
 
         REWARD_ITEM = BUILDER.comment("The item that gets used for the reward payment.")
-                        .define("Reward Item", new ResourceLocation("minecraft", "gold_nugget"));
+                        .define("Reward Item", "minecraft:gold_nugget");
 
         PODIUM_DEATH_MODIFIER = BUILDER.comment("The amount of points the first second and third player lose extra ontop of the death point penalty.")
                         .define("Leader Death Modifier", 5);

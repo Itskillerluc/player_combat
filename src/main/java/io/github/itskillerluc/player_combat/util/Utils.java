@@ -1,18 +1,28 @@
 package io.github.itskillerluc.player_combat.util;
 
+import io.github.itskillerluc.player_combat.capabilities.AttachBountyCapability;
+import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.stats.Stat;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.common.capabilities.Capability;
 import org.apache.logging.log4j.LogManager;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class Utils {
+    public static final Map<UUID, Integer> SYNCHED_POINTS = new HashMap<>();
+    public static final Map<UUID, Integer> SYNCHED_BOUNTY = new HashMap<>();
+
     @Nullable
     private static ServerStatsCounter getStats(UUID uuid, Level level){
         if (level.getServer() == null){
@@ -53,6 +63,7 @@ public final class Utils {
     private static int setStatOffline(UUID uuid, Level level, Stat<?> stat, int value){
         if (level.getServer() != null){
             getStats(uuid, level).stats.put(stat, value);
+            sync(level);
             return 1;
         }
         return 0;
@@ -63,6 +74,7 @@ public final class Utils {
             AtomicInteger success = new AtomicInteger();
             level.getServer().getProfileCache().get(username).ifPresentOrElse(profile ->
                     success.set(setStatOffline(profile.getId(), level, stat, value)), () -> {success.set(0); LogManager.getLogger().error("Couldn't find user with username: " + username);});
+            sync(level);
             return success.get();
         }
         return 0;
@@ -89,6 +101,7 @@ public final class Utils {
         } else {
             player.resetStat(stat);
             player.awardStat(stat, value);
+            sync(level);
             return 1;
         }
     }
@@ -117,5 +130,15 @@ public final class Utils {
             return toReturn.get();
         }
         return 0;
+    }
+
+    public static void sync(@NotNull Level level) {
+        for (Player player : level.getServer().getPlayerList().getPlayers()) {
+            Map.Entry<UUID, ServerStatsCounter> uuidServerStatsCounterEntry = Map.entry(player.getUUID(), level.getServer().getPlayerList().getPlayerStats(player));
+            SYNCHED_POINTS.put(uuidServerStatsCounterEntry.getKey(), uuidServerStatsCounterEntry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())));
+        }
+        for (Player player : level.getServer().getPlayerList().getPlayers()) {
+            level.getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> SYNCHED_BOUNTY.put(player.getUUID(), cap.getBounty(player.getUUID())));
+        }
     }
 }

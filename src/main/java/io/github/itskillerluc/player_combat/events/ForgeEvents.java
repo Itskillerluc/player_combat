@@ -7,6 +7,7 @@ import io.github.itskillerluc.player_combat.commands.PlayerCombatCommand;
 import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
@@ -109,11 +111,7 @@ public class ForgeEvents {
     static void loginEvent(final PlayerEvent.PlayerLoggedInEvent event) {
         if (!event.getEntity().getLevel().isClientSide()) {
             PlayerCombatCommand.fetchRewards(((ServerLevel) event.getEntity().getLevel()), ((ServerPlayer) event.getEntity()));
+            Utils.sync(event.getEntity().level);
         }
-    }
-
-    @SubscribeEvent
-    static void logoutEvent(final PlayerEvent.PlayerLoggedOutEvent event) {
-        //event.getEntity()
     }
 }
