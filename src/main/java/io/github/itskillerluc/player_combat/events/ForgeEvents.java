@@ -7,7 +7,7 @@ import io.github.itskillerluc.player_combat.commands.PlayerCombatCommand;
 import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
-import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,7 +19,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
@@ -112,6 +111,13 @@ public class ForgeEvents {
         if (!event.getEntity().getLevel().isClientSide()) {
             PlayerCombatCommand.fetchRewards(((ServerLevel) event.getEntity().getLevel()), ((ServerPlayer) event.getEntity()));
             Utils.sync(event.getEntity().level);
+        }
+    }
+
+    @SubscribeEvent
+    static void setTab(final PlayerEvent.TabListNameFormat event){
+        if (event.getDisplayName() != null) {
+            event.setDisplayName(event.getDisplayName().copy().append(" " + Utils.getStat(event.getEntity().getUUID(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()))).withStyle(ChatFormatting.GOLD));
         }
     }
 }

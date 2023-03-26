@@ -1,6 +1,7 @@
 package io.github.itskillerluc.player_combat.client.events;
 
 import io.github.itskillerluc.player_combat.PlayerCombat;
+import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.util.Utils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -27,9 +28,9 @@ public class ForgeEvents {
         var list = Utils.SYNCHED_POINTS.entrySet().stream().sorted(Comparator.comparingInt(entry -> ((Map.Entry<UUID, Integer>) entry).getValue()).reversed()).toList();
         var points = String.valueOf(Utils.SYNCHED_POINTS.get(event.getMessageSigner().profileId()));
         var component = Component.empty()
-                .append(getComponent(event, list))
-                .append(Component.literal(points.equals("null") ? "0" : points))
-                        .withStyle(ChatFormatting.UNDERLINE)
+                .append(getComponent(event, list, Utils.SYNCHED_POINTS))
+                .append(Component.literal(points.equals("null") ? "0" : points)
+                        .withStyle(ChatFormatting.UNDERLINE))
                 .append(" | ")
                 .append(message[0]);
 
@@ -44,12 +45,12 @@ public class ForgeEvents {
         event.setMessage(component);
     }
 
-    private static Component getComponent(ClientChatReceivedEvent event, List<Map.Entry<UUID, Integer>> list){
+    private static Component getComponent(ClientChatReceivedEvent event, List<Map.Entry<UUID, Integer>> list, Map<UUID, Integer> map){
         return switch (list.stream().map(Map.Entry::getKey).toList().indexOf(event.getMessageSigner().profileId())) {
             case 0 -> Component.literal("\uEff3").setStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID,"icons")));
             case 1 -> Component.literal("\uEff4").setStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID,"icons")));
             case 2 -> Component.literal("\uEff5").setStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID,"icons")));
-            default -> Component.literal("\uEff1").setStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID,"icons")));
+            default -> Component.literal(map.get(event.getMessageSigner().profileId()) > ServerConfig.THRESHOLD.get() ? "\uEff6" : "\uEff1").setStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID,"icons")));
         };
     }
 }

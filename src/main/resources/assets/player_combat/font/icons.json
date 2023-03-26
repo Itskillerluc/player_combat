@@ -236,6 +236,15 @@
       "chars": [
         "\uEff5"
       ]
+    },
+    {
+      "type": "bitmap",
+      "file": "player_combat:font/threshold.png",
+      "ascent": 8,
+      "height": 10,
+      "chars": [
+        "\uEff6"
+      ]
     }
   ]
 }

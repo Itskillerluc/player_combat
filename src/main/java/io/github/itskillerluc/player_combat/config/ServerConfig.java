@@ -12,6 +12,7 @@ public class ServerConfig {
     public static final ForgeConfigSpec.ConfigValue<Integer> DEFAULT_POINTS;
     public static final ForgeConfigSpec.ConfigValue<Integer> PODIUM_DEATH_MODIFIER;
     public static final ForgeConfigSpec.ConfigValue<String> REWARD_ITEM;
+    public static final ForgeConfigSpec.ConfigValue<Integer> THRESHOLD;
 
     static {
         BUILDER.push("Configs for Player Combat");
@@ -30,6 +31,9 @@ public class ServerConfig {
 
         PODIUM_DEATH_MODIFIER = BUILDER.comment("The amount of points the first second and third player lose extra ontop of the death point penalty.")
                         .define("Leader Death Modifier", 5);
+
+        THRESHOLD = BUILDER.comment("The amount you have to be over to get a cool badge next to your name.")
+                        .define("Icon Threshold Amount", 100);
 
         BUILDER.pop();
         SPEC = BUILDER.build();

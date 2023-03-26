@@ -1,6 +1,9 @@
 package io.github.itskillerluc.player_combat.util;
 
 import io.github.itskillerluc.player_combat.capabilities.AttachBountyCapability;
+import io.github.itskillerluc.player_combat.networking.RegisterPackets;
+import io.github.itskillerluc.player_combat.networking.SyncBountyPacket;
+import io.github.itskillerluc.player_combat.networking.SyncPointsPacket;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.ServerStatsCounter;
@@ -20,8 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class Utils {
-    public static final Map<UUID, Integer> SYNCHED_POINTS = new HashMap<>();
-    public static final Map<UUID, Integer> SYNCHED_BOUNTY = new HashMap<>();
+    public static Map<UUID, Integer> SYNCHED_POINTS = new HashMap<>();
+    public static Map<UUID, Integer> SYNCHED_BOUNTY = new HashMap<>();
 
     @Nullable
     private static ServerStatsCounter getStats(UUID uuid, Level level){
@@ -133,12 +136,20 @@ public final class Utils {
     }
 
     public static void sync(@NotNull Level level) {
+        Map<UUID, Integer> pointMap = new HashMap<>();
         for (Player player : level.getServer().getPlayerList().getPlayers()) {
             Map.Entry<UUID, ServerStatsCounter> uuidServerStatsCounterEntry = Map.entry(player.getUUID(), level.getServer().getPlayerList().getPlayerStats(player));
-            SYNCHED_POINTS.put(uuidServerStatsCounterEntry.getKey(), uuidServerStatsCounterEntry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())));
+            pointMap.put(uuidServerStatsCounterEntry.getKey(), uuidServerStatsCounterEntry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())));
         }
+        for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+            RegisterPackets.sendToPlayer(new SyncPointsPacket(pointMap), player);
+        }
+        pointMap.clear();
         for (Player player : level.getServer().getPlayerList().getPlayers()) {
-            level.getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> SYNCHED_BOUNTY.put(player.getUUID(), cap.getBounty(player.getUUID())));
+            level.getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> pointMap.put(player.getUUID(), cap.getBounty(player.getUUID())));
+        }
+        for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+            RegisterPackets.sendToPlayer(new SyncBountyPacket(pointMap), player);
         }
     }
 }
