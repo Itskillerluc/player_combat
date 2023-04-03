@@ -35,4 +35,7 @@ public interface IDamageTrackCapability extends INBTSerializable<CompoundTag> {
             }
         }
     }
+
+    float getRevenge(UUID uuid);
+    void setRevenge(float revenge, UUID uuid);
 }

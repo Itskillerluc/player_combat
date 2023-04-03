@@ -1,5 +1,6 @@
 package io.github.itskillerluc.player_combat.capabilities;
 
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 
@@ -10,6 +11,7 @@ import java.util.UUID;
 
 public class DamageTrackCapability implements IDamageTrackCapability{
     private LinkedHashMap<UUID, Float> damageMap = new LinkedHashMap<>();
+    private Pair<UUID, Float> revenge;
 
     @Override
     public LinkedHashMap<UUID, Float> getDamageMap() {
@@ -52,6 +54,16 @@ public class DamageTrackCapability implements IDamageTrackCapability{
     @Override
     public void removeDamage(UUID id, float damage) {
         damageMap.replace(id, getDamage(id) - damage);
+    }
+
+    @Override
+    public float getRevenge(UUID uuid) {
+        return revenge.getFirst().equals(uuid) ? revenge.getSecond() : 0;
+    }
+
+    @Override
+    public void setRevenge(float revenge, UUID uuid) {
+        this.revenge = new Pair<>(uuid, revenge);
     }
 
     @Override

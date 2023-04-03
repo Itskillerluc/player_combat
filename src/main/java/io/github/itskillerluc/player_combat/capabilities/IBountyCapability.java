@@ -12,4 +12,5 @@ public interface IBountyCapability extends INBTSerializable<CompoundTag> {
     int setBounty(UUID uuid, int bounty);
     Map<UUID, Integer> getBountyList();
     int removeBounty(UUID uuid);
+
 }

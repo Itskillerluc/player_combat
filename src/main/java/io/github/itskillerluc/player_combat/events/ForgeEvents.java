@@ -8,6 +8,9 @@ import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.stats.StatRegistry;
 import io.github.itskillerluc.player_combat.util.Utils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,10 +30,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.logging.log4j.LogManager;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Mod.EventBusSubscriber(bus= Mod.EventBusSubscriber.Bus.FORGE, modid = PlayerCombat.MODID)
 public class ForgeEvents {
@@ -86,13 +86,21 @@ public class ForgeEvents {
 
                 var lb = new ArrayList<>(cap.getDamageMap().keySet()).indexOf(event.getEntity().getUUID());
                 Utils.addStat(player.getUUID(), event.getEntity().getLevel(), stat, -(ServerConfig.PODIUM_DEATH_MODIFIER.get() * (lb == 0 ? 3 : lb == 1 ? 2 : lb == 3 ? 1 : 0)));
-
+                int revenge = (int) cap.getRevenge(cap.getDamageMapEntry(cap.getDamageMap().size()-1).getKey());
+                Utils.addStat(cap.getDamageMapEntry(cap.getDamageMap().size()-1).getKey(), event.getEntity().level, Stats.CUSTOM.get(StatRegistry.POINTS.get()), revenge);
+                cap.setRevenge(0, null);
+                if (event.getEntity().getLevel().getPlayerByUUID(cap.getDamageMapEntry(cap.getDamageMap().size()-1).getKey()) != null) {
+                    event.getEntity().getLevel().getPlayerByUUID(cap.getDamageMapEntry(cap.getDamageMap().size() - 1).getKey()).getCapability(AttachDamageTrackCapability.INSTANCE).resolve().ifPresent(cap2 -> {
+                        cap2.setRevenge(((float) cap.getDamageMap().values().stream().mapToDouble(v -> v).sum()), event.getEntity().getUUID());
+                    });
+                }
                 event.getEntity().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresentOrElse(bounty -> {
                     if (bounty.isBounty(event.getEntity().getUUID())) {
                         cap.getDamageMap().entrySet().stream().max(Comparator.comparingDouble(Map.Entry::getValue)).ifPresent(max ->
                                 Utils.setStat(max.getKey(), event.getEntity().getLevel(), stat, bounty.getBounty(event.getEntity().getUUID())));
                     }
                 }, () -> LogManager.getLogger().error("Couldn't find BountyCapability"));
+                cap.setDamageMap(new LinkedHashMap<>());
             }, () -> LogManager.getLogger().error("Couldn't find DamageTrackCapability"));
         }
 
@@ -116,8 +124,20 @@ public class ForgeEvents {
 
     @SubscribeEvent
     static void setTab(final PlayerEvent.TabListNameFormat event){
-        if (event.getDisplayName() != null) {
-            event.setDisplayName(event.getDisplayName().copy().append(" " + Utils.getStat(event.getEntity().getUUID(), event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()))).withStyle(ChatFormatting.GOLD));
-        }
+        MutableComponent comp = Component.empty();
+        comp.append(event.getDisplayName() != null ? event.getDisplayName() : event.getEntity().getName());
+        setTab(event, comp);
+    }
+
+    private static void setTab(PlayerEvent.TabListNameFormat event, MutableComponent comp) {
+        UUID uuid = event.getEntity().getUUID();
+        comp.append(Component.literal(" " + Utils.getStat(uuid, event.getEntity().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()))).withStyle(ChatFormatting.GOLD));
+        event.getEntity().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> {
+            if (cap.isBounty(uuid)) {
+                comp.append("\uEff2").withStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID, "icons")));
+                comp.append(Component.literal(" " + cap.getBounty(uuid)).withStyle(ChatFormatting.AQUA));
+            }
+        });
+        event.setDisplayName(comp);
     }
 }

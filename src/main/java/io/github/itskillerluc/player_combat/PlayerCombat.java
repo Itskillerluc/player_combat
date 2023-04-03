@@ -37,6 +37,6 @@ public class PlayerCombat
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        event.enqueueWork(RegisterPackets::register);
+        RegisterPackets.register();
     }
 }

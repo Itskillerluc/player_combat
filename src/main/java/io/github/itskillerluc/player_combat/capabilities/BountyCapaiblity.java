@@ -41,6 +41,7 @@ public class BountyCapaiblity implements IBountyCapability{
         return bountyMap.remove(uuid) == null ? 0 : 1;
     }
 
+
     @Override
     public CompoundTag serializeNBT() {
         CompoundTag tag = new CompoundTag();

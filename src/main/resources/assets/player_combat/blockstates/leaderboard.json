@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "player_combat:block/leaderboard"
+    }
+  }
+}

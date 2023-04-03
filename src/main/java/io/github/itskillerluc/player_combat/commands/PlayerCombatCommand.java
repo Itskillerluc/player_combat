@@ -17,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.PlayerList;
 import net.minecraft.stats.ServerStatsCounter;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.Entity;
@@ -144,7 +145,12 @@ public class PlayerCombatCommand {
             if (Utils.addStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points) == 1) {
                 toReturn = 1;
             }
+            var p = context.getSource().getServer().getPlayerList().getPlayer(player.getId());
+            if (p != null) {
+                p.refreshTabListName();
+            }
         }
+        context.getSource().sendSystemMessage(Component.literal(toReturn == 1 ? "success!" : "Failed :("));
         return toReturn;
     }
 
@@ -155,9 +161,14 @@ public class PlayerCombatCommand {
         int toReturn = 0;
         for (GameProfile player : players) {
             if (Utils.setStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), points) == 0) {
+                var p = context.getSource().getServer().getPlayerList().getPlayer(player.getId());
+                if (p != null) {
+                    p.refreshTabListName();
+                }
                 toReturn = 1;
             }
         }
+        context.getSource().sendSystemMessage(Component.literal(toReturn == 1 ? "success!" : "Failed :("));
         return toReturn;
     }
 
@@ -167,20 +178,26 @@ public class PlayerCombatCommand {
         if (Utils.setStat(entries.get(0).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -first) == 1 ||
                 Utils.setStat(entries.get(1).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -second) == 1 ||
                 Utils.setStat(entries.get(2).getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -third) == 1){
+
             toReturn = 1;
         }
         for (int i = 0; i < entries.size(); i++) {
             Map.Entry<UUID, ServerStatsCounter> entry = entries.get(i);
             if (i == 0 || i == 1 || i == 2 || entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())) < threshold){
+                if (context.getSource().getLevel().players().stream().map(Entity::getUUID).anyMatch(e -> e.equals(entry.getKey()))) {
+                    fetchRewards(context.getSource().getLevel(), ((ServerPlayer) Objects.requireNonNull(context.getSource().getLevel().getPlayerByUUID(entry.getKey()))));
+                }
                 continue;
             }
             if (Utils.setStat(entry.getKey(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -thresholdAmount) == 1) {
                 toReturn = 1;
             }
-            if (context.getSource().getLevel().players().stream().map(Entity::getUUID).anyMatch(e -> e.equals(entry.getKey()))) {
-                fetchRewards(context.getSource().getLevel(), ((ServerPlayer) Objects.requireNonNull(context.getSource().getLevel().getPlayerByUUID(entry.getKey()))));
-            }
+
         }
+        for (ServerPlayer player : context.getSource().getLevel().players()) {
+            player.refreshTabListName();
+        }
+        context.getSource().sendSystemMessage(Component.literal(toReturn == 1 ? "success!" : "Failed :("));
         return toReturn;
     }
 
@@ -188,29 +205,35 @@ public class PlayerCombatCommand {
         int toReturn = 0;
         for (GameProfile player : players) {
             if (Utils.setStat(player.getId(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get()) == 0) {
+                var p = context.getSource().getServer().getPlayerList().getPlayer(player.getId());
+                if (p != null) {
+                    p.refreshTabListName();
+                }
                 toReturn = 1;
             }
         }
+        context.getSource().sendSystemMessage(Component.literal(toReturn == 1 ? "success!" : "Failed :("));
         return toReturn;
     }
 
     @SuppressWarnings("ConstantConditions")
     private static int bonusReward(CommandContext<CommandSourceStack> context, int first, int second, int third, int threshold, int thresholdAmount){
-        ArrayList<Map.Entry<UUID, ServerStatsCounter>> entries = new ArrayList<>(context.getSource().getServer().getPlayerList().stats.entrySet().stream().sorted(Comparator.comparingInt(entry -> entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())))).toList());
-        entries.removeIf(uuid -> context.getSource().getServer().getPlayerList().getPlayer(uuid.getKey()) == null);
+        PlayerList playerlist = context.getSource().getServer().getPlayerList();
+        ArrayList<Map.Entry<UUID, ServerStatsCounter>> entries = new ArrayList<>(playerlist.stats.entrySet().stream().sorted(Comparator.comparingInt(entry -> entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())))).toList());
+        entries.removeIf(uuid -> playerlist.getPlayer(uuid.getKey()) == null);
         boolean flag;
         Item value = ForgeRegistries.ITEMS.getValue(new ResourceLocation(ServerConfig.REWARD_ITEM.get()));
-        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(0).getKey()).addItem(new ItemStack(value, first));
+        flag = playerlist.getPlayer(entries.get(0).getKey()).addItem(new ItemStack(value, first));
         if (!flag) {
-            context.getSource().getServer().getPlayerList().getPlayer(entries.get(0).getKey()).spawnAtLocation(new ItemStack(value, first));
+            playerlist.getPlayer(entries.get(0).getKey()).spawnAtLocation(new ItemStack(value, first));
         }
-        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(1).getKey()).addItem(new ItemStack(value, second));
+        flag = playerlist.getPlayer(entries.get(1).getKey()).addItem(new ItemStack(value, second));
         if (!flag) {
-            context.getSource().getServer().getPlayerList().getPlayer(entries.get(1).getKey()).spawnAtLocation(new ItemStack(value, second));
+            playerlist.getPlayer(entries.get(1).getKey()).spawnAtLocation(new ItemStack(value, second));
         }
-        flag = context.getSource().getServer().getPlayerList().getPlayer(entries.get(2).getKey()).addItem(new ItemStack(value, third));
+        flag = playerlist.getPlayer(entries.get(2).getKey()).addItem(new ItemStack(value, third));
         if (!flag) {
-            context.getSource().getServer().getPlayerList().getPlayer(entries.get(2).getKey()).spawnAtLocation(new ItemStack(value, third));
+            playerlist.getPlayer(entries.get(2).getKey()).spawnAtLocation(new ItemStack(value, third));
         }
 
         for (int i = 0; i < entries.size(); i++) {
@@ -218,19 +241,19 @@ public class PlayerCombatCommand {
             if (i == 0 || i == 1 || i == 2 || entry.getValue().getValue(Stats.CUSTOM.get(StatRegistry.POINTS.get())) < threshold){
                 continue;
             }
-            flag = context.getSource().getServer().getPlayerList().getPlayer(entry.getKey()).addItem(new ItemStack(value, thresholdAmount));
+            flag = playerlist.getPlayer(entry.getKey()).addItem(new ItemStack(value, thresholdAmount));
             if (!flag) {
-                context.getSource().getServer().getPlayerList().getPlayer(entry.getKey()).spawnAtLocation(new ItemStack(value, thresholdAmount));
+                playerlist.getPlayer(entry.getKey()).spawnAtLocation(new ItemStack(value, thresholdAmount));
             }
         }
         return 1;
     }
 
     private static int setBounty(CommandContext<CommandSourceStack> context, Collection<GameProfile> target, int amount){
-        if (context.getSource().getPlayer() != null){
+        if (context.getSource().getPlayer() == null){
             return 0;
         }
-        if (getStat(context, context.getSource().getPlayer().getGameProfile()) >= amount * target.size()) {
+        if (getStat(context, context.getSource().getPlayer().getGameProfile()) < amount * target.size()) {
             context.getSource().getPlayer().sendSystemMessage(Component.literal("You do not have sufficient points for this. You are " + (target.size() * amount - getStat(context, context.getSource().getPlayer().getGameProfile())) + "points short."));
             return 0;
         }
@@ -239,9 +262,14 @@ public class PlayerCombatCommand {
             context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap -> {
                     cap.setBounty(gameProfile.getId(), amount);
                     Utils.addStat(context.getSource().getPlayer().getUUID(), context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), -amount);
+                    var player = context.getSource().getServer().getPlayerList().getPlayer(gameProfile.getId());
+                    if (player != null) {
+                        player.refreshTabListName();
+                    }
                     toReturn.set(1);
             });
         }
+        context.getSource().sendSystemMessage(Component.literal(toReturn.get() == 1 ? "success!" : "Failed :("));
         return toReturn.get();
     }
 
@@ -250,23 +278,26 @@ public class PlayerCombatCommand {
             return 0;
         }
 
-        context.getSource().sendSystemMessage(Component.literal("--------Bounties--------").withStyle(ChatFormatting.GOLD));
+        context.getSource().sendSystemMessage(Component.literal("----------Bounties----------").withStyle(ChatFormatting.GOLD));
 
         ArrayList<Map.Entry<UUID, Integer>> entries = new ArrayList<>(context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE)
                 .resolve().orElseThrow().getBountyList().entrySet());
 
-        for (int i = 10 * (page -1); i < Math.min((page-1) * 10 + 10, entries.size()); i++) {
+        for (int i = 10 * (Math.max(0, page)); i < Math.min((page) * 10 + 10, entries.size()); i++) {
             Map.Entry<UUID, Integer> uuidServerStatsCounterEntry = entries.get(i);
 
             int finalI = i + 1;
             context.getSource().getServer().getProfileCache().get(uuidServerStatsCounterEntry.getKey()).ifPresentOrElse(profile ->
                     context.getSource().sendSystemMessage(Component.literal(finalI + ". ").withStyle(ChatFormatting.GREEN).append(Component.literal(profile.getName() + ": ").withStyle(ChatFormatting.AQUA)).append(Component.literal(String.valueOf(uuidServerStatsCounterEntry.getValue().intValue())).withStyle(ChatFormatting.WHITE))), () -> LogManager.getLogger().warn("Couldn't find player"));
         }
-        context.getSource().sendSystemMessage(Component.literal(String.format("---------Page (%d/%d)---------", page, (entries.size() / 10) +1)).withStyle(ChatFormatting.GOLD));
+        context.getSource().sendSystemMessage(Component.literal(String.format("---------Page (%d/%d)---------", page + 1, (entries.size() / 10) +1)).withStyle(ChatFormatting.GOLD));
         return 0;
     }
 
     public static int resetAll(CommandContext<CommandSourceStack> context){
+        for (ServerPlayer player : context.getSource().getLevel().players()) {
+            player.refreshTabListName();
+        }
         for (UUID uuid : context.getSource().getServer().getPlayerList().stats.keySet()) {
             return Utils.setStat(uuid, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get()) &
                     Utils.setStat(uuid, context.getSource().getLevel(), Stats.CUSTOM.get(StatRegistry.MOB_POINTS.get()), 0);
@@ -293,9 +324,16 @@ public class PlayerCombatCommand {
     private static int removeAllBounty(CommandContext<CommandSourceStack> context){
         AtomicInteger toReturn = new AtomicInteger();
         context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresentOrElse(cap -> {
+            for (ServerPlayer player : context.getSource().getLevel().players()) {
+                var p = context.getSource().getServer().getPlayerList().getPlayer(player.getUUID());
+                if (p != null) {
+                    p.refreshTabListName();
+                }
+            }
             toReturn.set(1);
             cap.getBountyList().clear();
         }, () -> toReturn.set(0));
+        context.getSource().sendSystemMessage(Component.literal(toReturn.get() == 1 ? "success!" : "Failed :("));
         return toReturn.get();
     }
 
@@ -306,9 +344,14 @@ public class PlayerCombatCommand {
             context.getSource().getLevel().getCapability(AttachBountyCapability.INSTANCE).resolve().ifPresent(cap ->
                     toReturn.set(cap.removeBounty(player.getId())));
             if (toReturn.get() == 1){
+                var p = context.getSource().getServer().getPlayerList().getPlayer(player.getId());
+                if (p != null) {
+                    p.refreshTabListName();
+                }
                 r = 1;
             }
         }
+        context.getSource().sendSystemMessage(Component.literal(r == 1 ? "success!" : "Failed :("));
         return r;
     }
 
@@ -322,6 +365,7 @@ public class PlayerCombatCommand {
             }
             player.displayClientMessage(Component.literal("You have gained your Rewards!!!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
             player.displayClientMessage(Component.literal("You got " + Math.abs(stat) + " ").append(value.getDefaultInstance().getDisplayName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
+            Utils.setStat(player.getUUID(), level, Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get());
         }
     }
 }

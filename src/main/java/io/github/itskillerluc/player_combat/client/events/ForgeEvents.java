@@ -4,8 +4,10 @@ import io.github.itskillerluc.player_combat.PlayerCombat;
 import io.github.itskillerluc.player_combat.config.ServerConfig;
 import io.github.itskillerluc.player_combat.util.Utils;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
@@ -24,24 +26,41 @@ public class ForgeEvents {
 
     @SubscribeEvent
     static void chatEvent(final ClientChatReceivedEvent event) {
-        String[] message = event.getMessage().getString().replaceFirst("<", "").split(">");
+        if (event.isSystem()){
+            return;
+        }
+        String[] message = null;
+        if (event.getMessage().getString().contains("<") && event.getMessage().getString().contains(">")) {
+            message = event.getMessage().getString().replaceFirst("<", "").split(">");
+        }
         var list = Utils.SYNCHED_POINTS.entrySet().stream().sorted(Comparator.comparingInt(entry -> ((Map.Entry<UUID, Integer>) entry).getValue()).reversed()).toList();
         var points = String.valueOf(Utils.SYNCHED_POINTS.get(event.getMessageSigner().profileId()));
-        var component = Component.empty()
-                .append(getComponent(event, list, Utils.SYNCHED_POINTS))
-                .append(Component.literal(points.equals("null") ? "0" : points)
-                        .withStyle(ChatFormatting.UNDERLINE))
-                .append(" | ")
-                .append(message[0]);
+        MutableComponent component;
+        if(message != null) {
+            component = Component.empty()
+                    .append(getComponent(event, list, Utils.SYNCHED_POINTS))
+                    .append(Component.literal(points.equals("null") ? "0" : points)
+                            .withStyle(ChatFormatting.UNDERLINE))
+                    .append(" | ")
+                    .append(message[0]);
+        } else {
+            component = Component.empty()
+                    .append(getComponent(event, list, Utils.SYNCHED_POINTS))
+                    .append(Component.literal(points.equals("null") ? "0" : points)
+                            .withStyle(ChatFormatting.UNDERLINE));
 
+            component.append(event.getMessage());
+        }
         if (Utils.SYNCHED_BOUNTY.containsKey(event.getMessageSigner().profileId()) && Utils.SYNCHED_BOUNTY.get(event.getMessageSigner().profileId()) != 0) {
             component.append(Component.literal("\uEff2")
                     .withStyle(Style.EMPTY.withFont(new ResourceLocation(PlayerCombat.MODID, "icons"))
                             .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(String.valueOf(Utils.SYNCHED_BOUNTY.get(event.getMessageSigner().profileId())))))));
         }
 
-        component.append(":");
-        component.append(message[1]);
+        if (message != null) {
+            component.append(":");
+            component.append(message[1]);
+        }
         event.setMessage(component);
     }
 
