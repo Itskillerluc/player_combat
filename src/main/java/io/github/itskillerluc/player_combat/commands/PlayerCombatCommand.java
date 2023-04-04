@@ -366,6 +366,7 @@ public class PlayerCombatCommand {
             player.displayClientMessage(Component.literal("You have gained your Rewards!!!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), true);
             player.displayClientMessage(Component.literal("You got " + Math.abs(stat) + " ").append(value.getDefaultInstance().getDisplayName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD), false);
             Utils.setStat(player.getUUID(), level, Stats.CUSTOM.get(StatRegistry.POINTS.get()), ServerConfig.DEFAULT_POINTS.get());
+            player.refreshTabListName();
         }
     }
 }
